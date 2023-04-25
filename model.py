@@ -89,7 +89,7 @@ class SimVP(nn.Module):
         self.dec = Decoder(hid_S, C, N_S)
 
 
-    def forward(self, x_raw):
+    def forward(self, x_raw, seg):
         B, T, C, H, W = x_raw.shape
         x = x_raw.view(B*T, C, H, W)
 
@@ -101,5 +101,8 @@ class SimVP(nn.Module):
         hid = hid.reshape(B*T, C_, H_, W_)
 
         Y = self.dec(hid, skip)
-        Y = Y.reshape(B, T, C, H, W)
+        if not seg:
+            Y = Y.reshape(B, T, C, H, W)
+        else:
+            Y = Y.reshape(B, T, 1, H, W)
         return Y

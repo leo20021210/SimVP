@@ -18,8 +18,9 @@ def create_parser():
     parser.add_argument('--batch_size', default=4, type=int, help='Batch size')
     parser.add_argument('--val_batch_size', default=2, type=int, help='Batch size')
     parser.add_argument('--data_root', default='../Dataset')
-    parser.add_argument('--dataname', default='dl', choices=['mmnist', 'taxibj', 'dl'])
+    parser.add_argument('--dataname', default='dl', choices=['mmnist', 'taxibj', 'dl', 'dl_seg'])
     parser.add_argument('--num_workers', default=8, type=int)
+    parser.add_argument('--resume', default=None)
 
     # model parameters
     parser.add_argument('--in_shape', default=[11, 3, 160, 240], type=int,nargs='*') # [10, 1, 64, 64] for mmnist, [4, 2, 32, 32] for taxibj 
@@ -41,8 +42,7 @@ if __name__ == '__main__':
     config = args.__dict__
 
     exp = Exp(args)
-    for epoch in range(args.epochs):
-        print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>  start <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
-        exp.train(args)
-        print('>>>>>>>>>>>>>>>>>>>>>>>>>>>> testing <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
-        mse = exp.test(args)
+    print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>  start <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
+    exp.train(args)
+    print('>>>>>>>>>>>>>>>>>>>>>>>>>>>> testing <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
+    mse = exp.test(args)

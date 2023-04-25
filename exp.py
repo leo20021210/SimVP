@@ -65,6 +65,10 @@ class Exp:
         args = self.args
         self.model = SimVP(tuple(args.in_shape), args.hid_S,
                            args.hid_T, args.N_S, args.N_T).to(self.device)
+        if args.resume is not None:
+            self.model.load_state_dict(torch.load(args.resume))
+        if self.args.dataname == 'dl_seg':
+            self.model.dec.readout = torch.nn.Conv2d(64, 1, kernel_size=(1, 1), stride=(1, 1)).to(self.device)
 
     def _get_data(self):
         config = self.args.__dict__
@@ -74,6 +78,8 @@ class Exp:
     def _select_optimizer(self):
         self.optimizer = torch.optim.Adam(
             self.model.parameters(), lr=self.args.lr)
+        #self.optimizer = torch.optim.Adam(
+        #    self.model.hid.parameters(), lr=self.args.lr)
         self.scheduler = torch.optim.lr_scheduler.OneCycleLR(
             self.optimizer, max_lr=self.args.lr, steps_per_epoch=len(self.train_loader), epochs=self.args.epochs)
         return self.optimizer
@@ -94,6 +100,7 @@ class Exp:
         recorder = Recorder(verbose=True)
 
         for epoch in range(config['epochs']):
+            self.test(args)
             train_loss = []
             self.model.train()
             train_pbar = tqdm(self.train_loader)
@@ -101,9 +108,9 @@ class Exp:
             for batch_x, batch_y in train_pbar:
                 self.optimizer.zero_grad()
                 batch_x, batch_y = batch_x.to(self.device), batch_y.to(self.device)
-                pred_y = self.model(batch_x)
+                pred_y = self.model(batch_x, args.dataname == 'dl_seg')
 
-                loss = self.criterion(pred_y, batch_y)
+                loss = 0.7 * self.criterion(pred_y[:, -1], batch_y[:, -1]) + 0.3 * self.criterion(pred_y, batch_y)
                 train_loss.append(loss.item())
                 train_pbar.set_description('train loss: {:.8f}'.format(loss.item()))
 
@@ -121,8 +128,9 @@ class Exp:
                 print_log("Epoch: {0} | Train Loss: {1:.8f} Vali Loss: {2:.8f}\n".format(
                     epoch + 1, train_loss, vali_loss))
                 recorder(vali_loss, self.model, self.path)
-
+                
         best_model_path = self.path + '/' + 'checkpoint.pth'
+        print(best_model_path)
         self.model.load_state_dict(torch.load(best_model_path))
         return self.model
 
@@ -135,7 +143,7 @@ class Exp:
                 break
 
             batch_x, batch_y = batch_x.to(self.device), batch_y.to(self.device)
-            pred_y = self.model(batch_x)
+            pred_y = self.model(batch_x, self.args.dataname == 'dl_seg')
             list(map(lambda data, lst: lst.append(data.detach().cpu().numpy()), [
                  pred_y, batch_y], [preds_lst, trues_lst]))
 
@@ -161,7 +169,7 @@ class Exp:
             if i > 25:
                 break
             print(i)
-            pred_y = self.model(batch_x.to(self.device))
+            pred_y = self.model(batch_x.to(self.device), self.args.dataname == 'dl_seg')
             list(map(lambda data, lst: lst.append(data.detach().cpu().numpy()), [
                  batch_x, batch_y, pred_y], [inputs_lst, trues_lst, preds_lst]))
 

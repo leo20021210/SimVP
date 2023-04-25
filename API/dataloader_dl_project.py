@@ -23,23 +23,28 @@ class ImageFolderDataset(Dataset):
     def __getitem__(self, index):
         folder_path = self.image_paths[index]
         image_filenames = [f for f in os.listdir(folder_path) if f.endswith('.jpg') or f.endswith('.png')]
-
+        #seg_path =os.path.join(folder_path, sorted(os.listdir(folder_path))[-1])
+        #seg_map = torch.tensor(np.load(seg_path))
         # Load each image as a PyTorch tensor and append it to a list
-        images = []
+        images = [None for i in range(22)]
         for filename in image_filenames:
             image_path = os.path.join(folder_path, filename)
+            k = ''
+            for j in filename:
+                if j.isdigit(): 
+                    k += j
             try:
                 with Image.open(image_path) as image:
                     image = transforms.ToTensor()(image)
-                    images.append(image)
+                    images[int(k)] = image
             except:
                 print("error occur")
                 print(image_path)
-                images.append(torch.zeros(3, 160, 240))
+                images[int(k)] = torch.zeros(3, 160, 240)
 
         # Stack the list of tensors into a single tensor with an additional batch dimension
         batch_of_images = torch.stack(images, dim=0)
-        assert batch_of_images.shape[0] == self.n_frames_input + self.n_frames_output
+        #assert batch_of_images.shape[0] == self.n_frames_input + self.n_frames_output
         return batch_of_images[:self.n_frames_input], batch_of_images[-self.n_frames_output:]
 
 def load_data(
