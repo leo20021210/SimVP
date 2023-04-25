@@ -8,6 +8,7 @@ dependencies:
   - pip
   - python
   - pytorch
+  - pytorch::torchvision
   - pip:
     - tqdm
     - scikit-image

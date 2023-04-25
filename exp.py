@@ -17,7 +17,8 @@ class Exp:
         super(Exp, self).__init__()
         self.args = args
         self.config = self.args.__dict__
-        self.device = self._acquire_device()
+        #self.device = self._acquire_device()
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self._preparation()
         print_log(output_namespace(self.args))
@@ -60,6 +61,7 @@ class Exp:
         self._build_model()
 
     def _build_model(self):
+        print("building model")
         args = self.args
         self.model = SimVP(tuple(args.in_shape), args.hid_S,
                            args.hid_T, args.N_S, args.N_T).to(self.device)
@@ -80,6 +82,7 @@ class Exp:
         self.criterion = torch.nn.MSELoss()
 
     def _save(self, name=''):
+        print(os.path.join(self.checkpoints_path, name + '.pth'))
         torch.save(self.model.state_dict(), os.path.join(
             self.checkpoints_path, name + '.pth'))
         state = self.scheduler.state_dict()
@@ -102,7 +105,7 @@ class Exp:
 
                 loss = self.criterion(pred_y, batch_y)
                 train_loss.append(loss.item())
-                train_pbar.set_description('train loss: {:.4f}'.format(loss.item()))
+                train_pbar.set_description('train loss: {:.8f}'.format(loss.item()))
 
                 loss.backward()
                 self.optimizer.step()
@@ -115,7 +118,7 @@ class Exp:
                     vali_loss = self.vali(self.vali_loader)
                     if epoch % (args.log_step * 100) == 0:
                         self._save(name=str(epoch))
-                print_log("Epoch: {0} | Train Loss: {1:.4f} Vali Loss: {2:.4f}\n".format(
+                print_log("Epoch: {0} | Train Loss: {1:.8f} Vali Loss: {2:.8f}\n".format(
                     epoch + 1, train_loss, vali_loss))
                 recorder(vali_loss, self.model, self.path)
 
@@ -144,15 +147,20 @@ class Exp:
         total_loss = np.average(total_loss)
         preds = np.concatenate(preds_lst, axis=0)
         trues = np.concatenate(trues_lst, axis=0)
-        mse, mae, ssim, psnr = metric(preds, trues, vali_loader.dataset.mean, vali_loader.dataset.std, True)
-        print_log('vali mse:{:.4f}, mae:{:.4f}, ssim:{:.4f}, psnr:{:.4f}'.format(mse, mae, ssim, psnr))
+        #mse, mae, ssim, psnr = metric(preds, trues, self.data_mean, self.data_mean, True)
+        mse, mae = metric(preds, trues, self.data_mean, self.data_std, False)
+        #print_log('vali mse:{:.4f}, mae:{:.4f}, ssim:{:.4f}, psnr:{:.4f}'.format(mse, mae, ssim, psnr))
+        print_log('vali mse:{:.8f}, mae:{:.8f}'.format(mse, mae))
         self.model.train()
         return total_loss
 
     def test(self, args):
         self.model.eval()
         inputs_lst, trues_lst, preds_lst = [], [], []
-        for batch_x, batch_y in self.test_loader:
+        for i, (batch_x, batch_y) in enumerate(self.test_loader):
+            if i > 25:
+                break
+            print(i)
             pred_y = self.model(batch_x.to(self.device))
             list(map(lambda data, lst: lst.append(data.detach().cpu().numpy()), [
                  batch_x, batch_y, pred_y], [inputs_lst, trues_lst, preds_lst]))
@@ -163,10 +171,14 @@ class Exp:
         folder_path = self.path+'/results/{}/sv/'.format(args.ex_name)
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
-
-        mse, mae, ssim, psnr = metric(preds, trues, self.test_loader.dataset.mean, self.test_loader.dataset.std, True)
-        print_log('mse:{:.4f}, mae:{:.4f}, ssim:{:.4f}, psnr:{:.4f}'.format(mse, mae, ssim, psnr))
+        
+        print(preds.shape, trues.shape)
+        #mse, mae, ssim, psnr = metric(preds, trues, self.test_loader.dataset.mean, self.test_loader.dataset.std, True)
+        mse, mae = metric(preds, trues, self.data_mean, self.data_std, False)
+        #print_log('mse:{:.4f}, mae:{:.4f}, ssim:{:.4f}, psnr:{:.4f}'.format(mse, mae, ssim, psnr))
+        print_log('vali mse:{:.4f}, mae:{:.4f}'.format(mse, mae))
 
         for np_data in ['inputs', 'trues', 'preds']:
+            print(osp.join(folder_path, np_data + '.npy'))
             np.save(osp.join(folder_path, np_data + '.npy'), vars()[np_data])
         return mse
