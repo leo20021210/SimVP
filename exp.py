@@ -65,8 +65,9 @@ class Exp:
         args = self.args
         self.model = SimVP(tuple(args.in_shape), args.hid_S,
                            args.hid_T, args.N_S, args.N_T).to(self.device)
-        if args.resume is not None:
-            self.model.load_state_dict(torch.load(args.resume))
+        if args.resume is not None:        
+            self.model.dec.readout = torch.nn.Identity()
+            self.model.load_state_dict(torch.load(args.resume), strict = False)
         if self.args.dataname == 'dl_seg':
             self.model.dec.readout = torch.nn.Conv2d(64, 49, kernel_size=(1, 1), stride=(1, 1)).to(self.device)
 
@@ -86,7 +87,7 @@ class Exp:
 
     def _select_criterion(self):
         weight = torch.ones(49).to(self.device)
-        weight[0] = 0.1
+        weight[0] = 0.3
         self.criterion = torch.nn.CrossEntropyLoss(weight = weight) if self.args.dataname == 'dl_seg' else torch.nn.MSELoss()
 
     def _save(self, name=''):
@@ -117,7 +118,7 @@ class Exp:
                     batch_y = batch_y.reshape(-1)
                     loss = self.criterion(pred_y, batch_y)
                 else:
-                    loss = 0.7 * self.criterion(pred_y[:, -1], batch_y[:, -1]) + 0.3 * self.criterion(pred_y, batch_y)
+                    loss = 0.25 * self.criterion(pred_y[:, -1], batch_y[:, -1]) + self.criterion(pred_y, batch_y)
                 train_loss.append(loss.item())
                 train_pbar.set_description('train loss: {:.8f}'.format(loss.item()))
 
@@ -145,8 +146,6 @@ class Exp:
         preds_lst, trues_lst, total_loss = [], [], []
         vali_pbar = tqdm(vali_loader)
         for i, (batch_x, batch_y) in enumerate(vali_pbar):
-            if i * batch_x.shape[0] > 100:
-                break
 
             batch_x, batch_y = batch_x.to(self.device), batch_y.to(self.device)
             pred_y = self.model(batch_x, self.args.dataname == 'dl_seg')
@@ -184,7 +183,6 @@ class Exp:
         for i, (batch_x, batch_y) in enumerate(self.test_loader):
             if i > 25:
                 break
-            print(i)
             pred_y = self.model(batch_x.to(self.device), self.args.dataname == 'dl_seg')
             if self.args.dataname == 'dl_seg':
                 pred_y = pred_y.permute(0, 1, 3, 4, 2)
