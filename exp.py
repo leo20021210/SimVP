@@ -69,7 +69,7 @@ class Exp:
             self.model.dec.readout = torch.nn.Identity()
             self.model.load_state_dict(torch.load(args.resume), strict = False)
         if self.args.dataname == 'dl_seg':
-            self.model.dec.readout = torch.nn.Conv2d(64, 49, kernel_size=(1, 1), stride=(1, 1)).to(self.device)
+            self.model.dec.readout = torch.nn.Conv2d(self.args.hid_S, 49, kernel_size=(1, 1), stride=(1, 1)).to(self.device)
 
     def _get_data(self):
         config = self.args.__dict__

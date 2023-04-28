@@ -51,7 +51,7 @@ def load_data(
         batch_size, val_batch_size,
         data_root, num_workers):
 
-    train_set = ImageFolderDataset(data_root + '/train', is_train=True,
+    train_set = ImageFolderDataset(data_root + '/unlabeled', is_train=True,
                             n_frames_input=11, n_frames_output=11)
     test_set = ImageFolderDataset(data_root + '/val', is_train=False,
                            n_frames_input=11, n_frames_output=11)
