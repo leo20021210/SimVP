@@ -15,7 +15,7 @@ def create_parser():
     parser.add_argument('--seed', default=1, type=int)
 
     # dataset parameters
-    parser.add_argument('--batch_size', default=2, type=int, help='Batch size')
+    parser.add_argument('--batch_size', default=8, type=int, help='Batch size')
     parser.add_argument('--val_batch_size', default=2, type=int, help='Batch size')
     parser.add_argument('--data_root', default='../Dataset')
     parser.add_argument('--dataname', default='dl', choices=['mmnist', 'taxibj', 'dl', 'dl_seg'])
